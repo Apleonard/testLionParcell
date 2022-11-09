@@ -84,10 +84,10 @@ func (u *usecases) processUploadFile(content [][]string, file multipart.FileHead
 		}
 		err := u.repo.CheckUser(payroll)
 		if err != nil {
-			fail++
+			success++
 			fmt.Println("error check user excel row-", i, payroll)
 		} else {
-			success++
+			fail++
 			u.repo.CreatePayroll(payroll)
 		}
 
