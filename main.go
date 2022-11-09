@@ -50,6 +50,7 @@ func main() {
 	db.AutoMigrate(
 		&models.User{},
 		&models.Payroll{},
+		&models.PayrollLog{},
 	)
 
 	repo := repository.NewRepository(db)
@@ -58,7 +59,6 @@ func main() {
 
 	router := mux.NewRouter()
 	router.HandleFunc("/check", handlers.Check).Methods("GET")
-	// router.HandleFunc("/check", ).Methods("GET")
 
 	router.HandleFunc("/upload", handlers.Upload).Methods("POST")
 	fmt.Println("run at port:8080")

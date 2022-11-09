@@ -7,13 +7,14 @@ import (
 	"strconv"
 	"testLionParcell/models"
 	"testLionParcell/repository"
+	"time"
 
 	"github.com/labstack/gommon/log"
 )
 
 type Usecases interface {
 	Upload(file multipart.FileHeader) error
-	processUploadFile(content [][]string) *models.Payroll
+	processUploadFile(content [][]string, file multipart.FileHeader) *models.Payroll
 }
 
 type usecases struct {
@@ -40,16 +41,17 @@ func (u *usecases) Upload(file multipart.FileHeader) error {
 	if err != nil {
 		return err
 	}
-
-	test := u.processUploadFile(content)
-	fmt.Println(test)
+	u.processUploadFile(content, file)
 
 	return nil
 }
 
-func (u *usecases) processUploadFile(content [][]string) *models.Payroll {
+func (u *usecases) processUploadFile(content [][]string, file multipart.FileHeader) *models.Payroll {
 
 	payroll := &models.Payroll{}
+	payrollLog := models.PayrollLog{}
+	success := int64(0)
+	fail := int64(0)
 
 	for i, contentData := range content[1:] {
 		for i, v := range contentData {
@@ -80,13 +82,28 @@ func (u *usecases) processUploadFile(content [][]string) *models.Payroll {
 				payroll.Status = v
 			}
 		}
-		fmt.Println(i, payroll)
 		err := u.repo.CheckUser(payroll)
 		if err != nil {
+			fail++
 			fmt.Println("error check user excel row-", i, payroll)
 		} else {
+			success++
 			u.repo.CreatePayroll(payroll)
 		}
+
+		//set payroll log
+		payrollLog.Batch = payroll.Batch
+		payrollLog.TotalSuccess = success
+		payrollLog.TotalFailed = fail
+		payrollLog.CreatedAt = time.Now()
+		payrollLog.UpdatedAt = time.Now()
+		payrollLog.FileName = file.Filename
 	}
+
+	err := u.repo.CreatePayrollLOg(&payrollLog)
+	if err != nil {
+		return nil
+	}
+
 	return payroll
 }

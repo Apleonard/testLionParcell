@@ -10,6 +10,7 @@ import (
 type Repositories interface {
 	CreatePayroll(data *models.Payroll) error
 	CheckUser(data *models.Payroll) error
+	CreatePayrollLOg(data *models.PayrollLog) error
 }
 
 type repositories struct {
@@ -39,5 +40,10 @@ func (r *repositories) CheckUser(data *models.Payroll) error {
 		fmt.Println(err)
 		return err
 	}
+	return nil
+}
+
+func (r *repositories) CreatePayrollLOg(data *models.PayrollLog) error {
+	r.db.Create(data)
 	return nil
 }

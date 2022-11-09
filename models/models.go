@@ -1,5 +1,7 @@
 package models
 
+import "github.com/jinzhu/gorm"
+
 type User struct {
 	ID     uint
 	Name   string `gorm:"size:255;not null" json:"name"`
@@ -13,4 +15,12 @@ type Payroll struct {
 	UserID        int64   `gorm:"not null" json:"user_id"`
 	Amount        float64 `gorm:"not null" json:"amount"`
 	Status        string  `gorm:"size:255;not null" json:"status"`
+}
+
+type PayrollLog struct {
+	FileName     string `gorm:"not null" json:"file_name"`
+	Batch        int64  `gorm:"size:255;not null" json:"batch"`
+	TotalSuccess int64  `gorm:"not null" json:"total_success"`
+	TotalFailed  int64  `gorm:"not null" json:"total_failed"`
+	gorm.Model
 }
