@@ -14,7 +14,9 @@ import (
 
 type Usecases interface {
 	Upload(file multipart.FileHeader) error
+	BatchUpload(file multipart.FileHeader) error
 	processUploadFile(content [][]string, file multipart.FileHeader) *models.Payroll
+	processBatchUploadFile(content [][]string, file multipart.FileHeader) *models.Payroll
 }
 
 type usecases struct {
@@ -31,7 +33,7 @@ func (u *usecases) Upload(file multipart.FileHeader) error {
 	f, err := file.Open()
 	if err != nil {
 		log.Error("file open", err)
-		return nil
+		return err
 	}
 	defer f.Close()
 
@@ -120,4 +122,97 @@ func (u *usecases) processUploadFile(content [][]string, file multipart.FileHead
 	wg.Wait()
 
 	return payroll
+}
+
+func (u *usecases) BatchUpload(file multipart.FileHeader) error {
+	f, err := file.Open()
+	if err != nil {
+		log.Error("file open", err)
+		return nil
+	}
+	defer f.Close()
+
+	reader := csv.NewReader(f)
+	content, err := reader.ReadAll()
+	if err != nil {
+		return err
+	}
+
+	u.processBatchUploadFile(content, file)
+
+	return nil
+}
+
+func (u *usecases) processBatchUploadFile(content [][]string, file multipart.FileHeader) *models.Payroll {
+
+	var (
+		payrollLog  models.PayrollLog
+		datas       []interface{}
+		FailedDatas []interface{}
+		success     int64
+		fail        int64
+	)
+
+	for i := 1; i < len(content); i++ {
+		batchInt, _ := strconv.Atoi(content[i][0])
+		userIDInt, _ := strconv.Atoi(content[i][3])
+		amountFloat64, _ := strconv.ParseFloat(content[i][4], 64)
+
+		data := &models.Payroll{
+			Batch:         int64(batchInt),
+			UserID:        int64(userIDInt),
+			AccountName:   content[i][1],
+			AccountNumber: content[i][2],
+			Amount:        amountFloat64,
+			Status:        content[i][5],
+		}
+
+		//check to users db
+		err := u.repo.CheckUser(data)
+		if err != nil {
+			//append failed data if error
+			fail++
+			FailedData := &models.PayrollFail{
+				Batch:         data.Batch,
+				AccountName:   data.AccountName,
+				AccountNumber: data.AccountNumber,
+				UserID:        data.UserID,
+				Amount:        data.Amount,
+				Status:        data.Status,
+			}
+			FailedDatas = append(FailedDatas, FailedData)
+		} else {
+			//append datas if success
+			success++
+			datas = append(datas, data)
+		}
+		payrollLog.Batch = data.Batch
+	}
+
+	//insert to payrolls db
+	err := u.repo.CreateBatchPayroll(datas)
+	if err != nil {
+		return nil
+	}
+
+	//insert to payroll failed log db
+	err = u.repo.CreateBatchFailedPayroll(FailedDatas)
+	if err != nil {
+		return nil
+	}
+
+	//set payroll log
+	payrollLog.TotalSuccess = success
+	payrollLog.TotalFailed = fail
+	payrollLog.CreatedAt = time.Now()
+	payrollLog.UpdatedAt = time.Now()
+	payrollLog.FileName = file.Filename
+
+	//insert to payroll logs db
+	err = u.repo.CreatePayrollLOg(&payrollLog)
+	if err != nil {
+		return nil
+	}
+
+	return nil
 }

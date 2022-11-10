@@ -51,6 +51,7 @@ func main() {
 		&models.User{},
 		&models.Payroll{},
 		&models.PayrollLog{},
+		&models.PayrollFail{},
 	)
 
 	repo := repository.NewRepository(db)
@@ -59,8 +60,9 @@ func main() {
 
 	router := mux.NewRouter()
 	router.HandleFunc("/check", handlers.Check).Methods("GET")
-
 	router.HandleFunc("/upload", handlers.Upload).Methods("POST")
+	router.HandleFunc("/batch-upload", handlers.BatchUpload).Methods("POST")
+
 	fmt.Println("run at port:8080")
 	http.ListenAndServe(":8080", router)
 }

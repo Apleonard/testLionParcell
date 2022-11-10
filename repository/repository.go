@@ -5,12 +5,15 @@ import (
 	"testLionParcell/models"
 
 	"github.com/jinzhu/gorm"
+	gorm_bulk "github.com/t-tiger/gorm-bulk-insert/v2"
 )
 
 type Repositories interface {
 	CreatePayroll(data *models.Payroll) error
 	CheckUser(data *models.Payroll) error
 	CreatePayrollLOg(data *models.PayrollLog) error
+	CreateBatchPayroll(data []interface{}) error
+	CreateBatchFailedPayroll(data []interface{}) error
 }
 
 type repositories struct {
@@ -50,5 +53,21 @@ func (r *repositories) CheckUser(data *models.Payroll) error {
 
 func (r *repositories) CreatePayrollLOg(data *models.PayrollLog) error {
 	r.db.Create(data)
+	return nil
+}
+
+func (r *repositories) CreateBatchPayroll(data []interface{}) error {
+	err := gorm_bulk.BulkInsert(r.db, data, 10000)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *repositories) CreateBatchFailedPayroll(data []interface{}) error {
+	err := gorm_bulk.BulkInsert(r.db, data, 10000)
+	if err != nil {
+		return err
+	}
 	return nil
 }

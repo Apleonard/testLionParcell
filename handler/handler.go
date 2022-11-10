@@ -9,6 +9,7 @@ import (
 type Handlers interface {
 	Check(w http.ResponseWriter, r *http.Request)
 	Upload(w http.ResponseWriter, r *http.Request)
+	BatchUpload(w http.ResponseWriter, r *http.Request)
 }
 
 type handlers struct {
@@ -44,6 +45,21 @@ func (h *handlers) Upload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = h.usecase.Upload(*file)
+	if err != nil {
+		respondWithJSON(w, http.StatusInternalServerError, err)
+	}
+
+	respondWithJSON(w, http.StatusOK, "success")
+}
+
+func (h *handlers) BatchUpload(w http.ResponseWriter, r *http.Request) {
+
+	_, file, err := r.FormFile("upload-file")
+	if err != nil {
+		respondWithJSON(w, http.StatusBadRequest, "fail to upload")
+	}
+
+	err = h.usecase.BatchUpload(*file)
 	if err != nil {
 		respondWithJSON(w, http.StatusInternalServerError, err)
 	}
