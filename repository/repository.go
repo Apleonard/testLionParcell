@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"fmt"
+	"errors"
 	"testLionParcell/models"
 
 	"github.com/jinzhu/gorm"
@@ -30,16 +30,21 @@ func (r *repositories) CreatePayroll(data *models.Payroll) error {
 }
 
 func (r *repositories) CheckUser(data *models.Payroll) error {
+	result := &models.User{}
 	user := &models.User{}
 	user.ID = uint(data.UserID)
 	user.Name = data.AccountName
 	user.Status = data.Status
 
-	err := r.db.First(&user).Error
+	err := r.db.Where("id = ?", user.ID).First(&result).Error
 	if err != nil {
-		fmt.Println(err)
 		return err
 	}
+
+	if user.ID != result.ID || user.Name != result.Name || user.Status != result.Status {
+		return errors.New("user doesnt match")
+	}
+
 	return nil
 }
 

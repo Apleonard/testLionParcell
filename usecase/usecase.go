@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"encoding/csv"
-	"fmt"
 	"mime/multipart"
 	"strconv"
 	"sync"
@@ -29,9 +28,6 @@ func NewUsecase(repo repository.Repositories) Usecases {
 }
 
 func (u *usecases) Upload(file multipart.FileHeader) error {
-
-	fmt.Println("masuk usecase")
-
 	f, err := file.Open()
 	if err != nil {
 		log.Error("file open", err)
@@ -50,7 +46,6 @@ func (u *usecases) Upload(file multipart.FileHeader) error {
 }
 
 func (u *usecases) processUploadFile(content [][]string, file multipart.FileHeader) *models.Payroll {
-
 	payroll := &models.Payroll{}
 	payrollLog := models.PayrollLog{}
 	success := int64(0)
@@ -61,20 +56,22 @@ func (u *usecases) processUploadFile(content [][]string, file multipart.FileHead
 		ErrorMessage string
 	}
 
-	chanCreateInternalProviderFail := make(chan *Fail)
-	defer close(chanCreateInternalProviderFail)
+	chanFail := make(chan *Fail)
+	defer close(chanFail)
 
 	var wg sync.WaitGroup
 
 	go func() {
-		for i, contentData := range content[1:] {
+		defer wg.Done()
+		for _, contentData := range content[1:] {
 			wg.Add(1)
+			// worker(i)
 			for i, v := range contentData {
 				switch i {
 				case 0:
 					batchInt, err := strconv.Atoi(v)
 					if err != nil {
-						// return nil
+						chanFail <- &Fail{}
 					}
 					payroll.Batch = int64(batchInt)
 				case 1:
@@ -84,13 +81,13 @@ func (u *usecases) processUploadFile(content [][]string, file multipart.FileHead
 				case 3:
 					userIDInt, err := strconv.Atoi(v)
 					if err != nil {
-						// return nil
+						chanFail <- &Fail{}
 					}
 					payroll.UserID = int64(userIDInt)
 				case 4:
 					AmountFloat64, err := strconv.ParseFloat(v, 64)
 					if err != nil {
-						// return nil
+						chanFail <- &Fail{}
 					}
 					payroll.Amount = AmountFloat64
 				case 5:
@@ -99,10 +96,9 @@ func (u *usecases) processUploadFile(content [][]string, file multipart.FileHead
 			}
 			err := u.repo.CheckUser(payroll)
 			if err != nil {
-				success++
-				fmt.Println("error check user excel row-", i, payroll)
-			} else {
 				fail++
+			} else {
+				success++
 				u.repo.CreatePayroll(payroll)
 			}
 
@@ -117,7 +113,7 @@ func (u *usecases) processUploadFile(content [][]string, file multipart.FileHead
 
 		err := u.repo.CreatePayrollLOg(&payrollLog)
 		if err != nil {
-			// return nil
+			return
 		}
 
 	}()
